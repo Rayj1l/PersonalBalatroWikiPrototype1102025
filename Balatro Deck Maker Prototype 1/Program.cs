@@ -1,20 +1,10 @@
-﻿using System;
+﻿using Balatro_Deck_Maker_Prototype_1.Classes;
+using System;
 using System.Data.SQLite;
 using System.Security.Cryptography.X509Certificates;
 using System.Xml.Linq;
 
-class Cards
-{
-    // this is setting up the card object, and setting default values for the computer to not hate itself and implode 
-    public int Id { get; set; } = 0;
-    public string Name { get; set; } = string.Empty;
-    public string? Suit { get; set; } = string.Empty;
-    public string EffectType { get; set; } = string.Empty;
-    public string Rarity { get; set; } = string.Empty;
-    public string ActivType { get; set; } = string.Empty;
-    public string? HandType { get; set; } = string.Empty;
 
-}
 
 class DatabaseConnector
 {
@@ -24,24 +14,10 @@ class DatabaseConnector
     {
         connectionString = $"Data Source = {dbPath} ; Version = 3;";
     }
-
-    private Cards CreateNewCard(SQLiteDataReader reader)
+    
+    public List<Card> ExecuteQuery(string sortMethod, string? selectedValue = null)
     {
-        return new Cards
-        {
-            Id = reader.GetInt32(0),
-            Name = reader.IsDBNull(1) ? string.Empty : reader.GetString(1),
-            Suit = reader.IsDBNull(2) ? string.Empty : reader.GetString(2),
-            EffectType = reader.IsDBNull(3) ? string.Empty : reader.GetString(3),
-            Rarity = reader.IsDBNull(4) ? string.Empty : reader.GetString(4),
-            ActivType = reader.IsDBNull(5) ? string.Empty : reader.GetString(5),
-            HandType = reader.IsDBNull(6) ? string.Empty : reader.GetString(6),
-        };
-    }
-
-    public List<Cards> ExecuteQuery(string sortMethod, string? selectedValue = null)
-    {
-        List<Cards> cards = new List<Cards>();
+        List<Card> cards = new List<Card>();
 
         try
         {
@@ -53,13 +29,14 @@ class DatabaseConnector
 
                 using SQLiteCommand command = new SQLiteCommand (query, connection);
                 {
-                    command.Parameters.AddWithValue("@selectedValue", "%" + selectedValue + "%");
+                    command.Parameters.AddWithValue("@selectedValue", $"%{selectedValue}%");
 
                     using (SQLiteDataReader reader = command.ExecuteReader())
                     {
                         while (reader.Read())
                         {
-                            cards.Add(CreateNewCard(reader));
+                            var newCard = new Card(reader);
+                            cards.Add(newCard);
                         }
                     }
                 }
@@ -79,21 +56,25 @@ class program
     static void Main()
     {
         Console.WriteLine("Enter database path");
-        string? dbpath = Console.ReadLine();
+        var dbpath = Console.ReadLine();
 
-        Console.WriteLine("Choose information type:\nA. All Cards  \nB. Effect Type  \nC. Suit  \nD. Hand Type  \nE. Activation Type");
-        string? infoType = Console.ReadLine();
+        Console.WriteLine("Choose information type:\nA. All Card  \nB. Effect Type  \nC. Suit  \nD. Hand Type  \nE. Activation Type");
+        var infoType = Console.ReadLine();
 
         string? selectedValue = null;
-        string sortMethod = infoType switch
+
+        if (!string.IsNullOrEmpty(infoType))
         {
-            "A" or "a" => string.Empty,
-            "B" or "b" => "WHERE Effect_Type LIKE @selectedValue",
-            "C" or "c" => "WHERE Suit LIKE @selectedValue",
-            "D" or "d" => "WHERE Hand_Type LIKE @selectedValue",
-            "E" or "e" => "WHERE Activation_Type LIKE @selectedValue",
-            _ => string.Empty
-        };
+            //switch statement to determine sort method (if any
+            string sortMethod = infoType.ToLower() switch
+            {
+                "b" => "WHERE Effect_Type LIKE @selectedValue",
+                "c" => "WHERE Suit LIKE @selectedValue",
+                "d" => "WHERE Hand_Type LIKE @selectedValue",
+                "e" => "WHERE Activation_Type LIKE @selectedValue",
+                _ => string.Empty
+            };
+        }
 
         if (infoType == "B" || infoType == "b")
         {
